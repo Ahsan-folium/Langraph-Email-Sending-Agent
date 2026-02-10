@@ -3,6 +3,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 
+from app.email_agent.tools import SEND_EMAIL_TOOL_NAME
 from app.email_agent.prompt import (
     EMAIL_GENERATION_HUMAN_PROMPT,
     EMAIL_GENERATION_SYSTEM_PROMPT,
@@ -12,7 +13,7 @@ from app.email_agent.state import EmailState
 from dotenv import load_dotenv
 import os
 
-from app.email_agent.tools import calculator
+from app.email_agent.tools import calculator, send_email
 
 load_dotenv()
 
@@ -22,7 +23,7 @@ class EmailAgentGraph:
         def _get_openai_api_key():
             return os.getenv("OPENAI_API_KEY", "")
 
-        self.tools = [calculator]
+        self.tools = [calculator, send_email]
         self.model = ChatOpenAI(
             model=model_name, api_key=_get_openai_api_key
         ).bind_tools(self.tools)
@@ -36,6 +37,7 @@ class EmailAgentGraph:
                 content=EMAIL_GENERATION_HUMAN_PROMPT.format(
                     subject=state.get("subject"),
                     tone=state.get("tone"),
+                    recipient=state.get("recepient", ""),
                 )
             )
             messages = [system_msg, human_msg]

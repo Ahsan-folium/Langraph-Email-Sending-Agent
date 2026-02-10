@@ -6,6 +6,7 @@ from langchain_core.messages import AnyMessage
 
 
 class EmailState(TypedDict):
+    recepient: str
     subject: str
     tone: Optional[Literal["formal", "casual", "friendly"]]
     generated_email: Optional[str]

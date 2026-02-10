@@ -11,11 +11,6 @@ def health():
     return {"status": "ok"}
 
 
-@api_file_router.get("/health2")
-def health2():
-    return {"status": "okay by health 2"}
-
-
 # we make an instance of the email agent
 email_agent = EmailAgentGraph()
 

@@ -1,9 +1,8 @@
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 
-from app.email_agent.tools import SEND_EMAIL_TOOL_NAME
 from app.email_agent.prompt import (
     EMAIL_GENERATION_HUMAN_PROMPT,
     EMAIL_GENERATION_SYSTEM_PROMPT,
@@ -40,12 +39,21 @@ class EmailAgentGraph:
                     recipient=state.get("recepient", ""),
                 )
             )
-            messages = [system_msg, human_msg]
-        else:
-            messages = [system_msg] + state["messages"]
+            response = self.model.invoke([system_msg, human_msg])
+            return {"messages": [human_msg, response]}
 
-        response = self.model.invoke(messages)
+        response = self.model.invoke([system_msg] + state["messages"])
         return {"messages": [response]}
+
+    @staticmethod
+    def _route_after_tools(state: EmailState) -> bool:
+        """True if send_email ran (done), False if we should loop back to LLM."""
+        for msg in reversed(state["messages"]):
+            if not isinstance(msg, ToolMessage):
+                break
+            if msg.name == "send_email":
+                return True
+        return False
 
     def _build_graph(self):
         graph = StateGraph(EmailState)
@@ -55,8 +63,11 @@ class EmailAgentGraph:
 
         graph.add_edge(START, "email_generation_node")
         graph.add_conditional_edges("email_generation_node", tools_condition)
-        graph.add_edge("tools", "email_generation_node")
-        # graph.add_edge("email_generation_node", END)
+        graph.add_conditional_edges(
+            "tools",
+            self._route_after_tools,
+            {True: END, False: "email_generation_node"},
+        )
 
         return graph.compile()
 
@@ -69,4 +80,4 @@ class EmailAgentGraph:
         }
         graph = self._build_graph()
 
-        return graph.invoke(initial_state)
+        return graph.invoke(initial_state)  # pyright: ignore[reportArgumentType]

@@ -12,7 +12,7 @@ from app.email_agent.state import EmailState
 from dotenv import load_dotenv
 import os
 
-from app.email_agent.tools import send_email
+from app.email_agent.tools import search_tool, send_email
 
 load_dotenv()
 
@@ -22,7 +22,7 @@ class EmailAgentGraph:
         def _get_openai_api_key():
             return os.getenv("OPENAI_API_KEY", "")
 
-        self.tools = [send_email]
+        self.tools = [send_email, search_tool]
         self.model = ChatOpenAI(
             model=model_name, api_key=_get_openai_api_key
         ).bind_tools(self.tools)

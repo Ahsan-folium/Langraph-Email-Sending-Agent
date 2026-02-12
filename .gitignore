@@ -11,3 +11,6 @@ wheels/
 
 .env
 .env.local
+
+*.sqlite
+checkpoints.sqlite-*

@@ -1,18 +1,14 @@
-from langchain_core.messages import AIMessage
+from langgraph.types import Interrupt
 
 
-def get_sent_email_body(messages: list) -> str | None:
-    for msg in reversed(messages):
-        if not isinstance(msg, AIMessage) or not getattr(msg, "tool_calls", None):
-            continue
-        for tc in msg.tool_calls:
-            name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", None)
-            if name == "send_email":
-                args = (
-                    tc.get("args")
-                    if isinstance(tc, dict)
-                    else getattr(tc, "args", None)
-                )
-                args = args if isinstance(args, dict) else {}
-                return args.get("body")
+def get_draft_from_interrupt(result: dict) -> str | None:
+    """Extract the draft email from the graph's __interrupt__ payload."""
+    interrupts = result.get("__interrupt__")
+    if not interrupts:
+        return None
+
+    for item in interrupts:
+        if isinstance(item, Interrupt) and isinstance(item.value, dict):
+            return item.value.get("draft")
+
     return None

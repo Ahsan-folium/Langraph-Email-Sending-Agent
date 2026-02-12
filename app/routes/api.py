@@ -1,9 +1,11 @@
+import uuid
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.email_agent.client import EmailAgentGraph
-from app.email_agent.schema import EmailRequestBody
-from app.routes.helpers import get_sent_email_body
+from app.email_agent.schema import ApproveEmailRequest, EmailRequestBody
+from app.routes.helpers import get_draft_from_interrupt
 
 api_file_router = APIRouter(tags=["health"])
 
@@ -19,13 +21,12 @@ def health():
 email_agent = EmailAgentGraph()
 
 
-@api_file_router.post("/send_email")
-def send_mail(input: EmailRequestBody):
+@api_file_router.post("/generate_email")
+def generate_email(input: EmailRequestBody):
+    """Generate a draft email. Returns the draft for human review."""
+    thread_id = str(uuid.uuid4())
     try:
-        result = email_agent.invoke(input)
-        print("+" * 200)
-        print(result)
-        print("+" * 200)
+        result = email_agent.invoke(input, thread_id=thread_id)
     except Exception as e:
         raise HTTPException(
             status_code=503,
@@ -36,38 +37,57 @@ def send_mail(input: EmailRequestBody):
             },
         )
 
-    messages = result.get("messages") or []
-    if not messages:
+    draft = get_draft_from_interrupt(result)
+    if draft is None:
         raise HTTPException(
             status_code=503,
             detail={
                 "success": False,
-                "error": "No response from email agent",
+                "error": "Could not extract draft from agent response",
             },
         )
 
-    email_body = get_sent_email_body(messages)
-    if email_body is None:
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "message": "Draft generated — review and approve",
+            "data": {
+                "thread_id": thread_id,
+                "recepient": input.recepient,
+                "subject": input.subject,
+                "tone": input.tone,
+                "draft": draft,
+            },
+        },
+    )
+
+
+@api_file_router.post("/approve_email")
+def approve_email(input: ApproveEmailRequest):
+    """Resume the graph with the reviewed/edited draft and send."""
+    try:
+        result = email_agent.resume(input.thread_id, input.draft)
+    except Exception as e:
         raise HTTPException(
             status_code=503,
             detail={
                 "success": False,
-                "error": "Could not determine sent email content",
+                "error": "Email send failed",
+                "message": str(e),
             },
         )
-
-    response_data = {
-        "recepient": result.get("recepient"),
-        "subject": result.get("subject"),
-        "tone": result.get("tone"),
-        "email": email_body,
-    }
 
     return JSONResponse(
         status_code=200,
         content={
             "success": True,
             "message": "Email sent successfully",
-            "data": response_data,
+            "data": {
+                "generated_email": result.get("generated_email"),
+                "recepient": result.get("recepient"),
+                "subject": result.get("subject"),
+                "tone": result.get("tone"),
+            },
         },
     )

@@ -1,4 +1,3 @@
-from langchain_core.tools import tool
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -6,7 +5,6 @@ from email.mime.text import MIMEText
 from langchain_community.tools import DuckDuckGoSearchRun
 
 
-@tool
 def send_email(to: str, subject: str, body: str) -> dict:
     """
     Send an email to the given recipient.

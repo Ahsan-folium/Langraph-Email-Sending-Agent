@@ -6,11 +6,12 @@ class EmailRequestBody(BaseModel):
     recepient: str
     subject: str
     tone: str
-    # messages: Annotated[list[AnyMessage], operator.add]
+
+
+class ApproveEmailRequest(BaseModel):
+    thread_id: str
+    draft: str
 
 
 class EmailResponseBody(BaseModel):
     generated_email: str
-
-
-# models for functions

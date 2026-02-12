@@ -27,6 +27,9 @@ def generate_email(input: EmailRequestBody):
     thread_id = str(uuid.uuid4())
     try:
         result = email_agent.invoke(input, thread_id=thread_id)
+        print("*" * 100)
+        print(f"result from first invoke : {result}")
+        print("*" * 100)
     except Exception as e:
         raise HTTPException(
             status_code=503,
@@ -68,6 +71,9 @@ def approve_email(input: ApproveEmailRequest):
     """Resume the graph with the reviewed/edited draft and send."""
     try:
         result = email_agent.resume(input.thread_id, input.draft)
+        print("#" * 100)
+        print(f"result from second invoke : {result}")
+        print("#" * 100)
     except Exception as e:
         raise HTTPException(
             status_code=503,
